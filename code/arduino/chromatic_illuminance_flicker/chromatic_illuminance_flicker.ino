@@ -3,9 +3,10 @@
 // by Lin Yang, CSE, HKUST.
 
 const int LED_COUNT = 2;	// number of multi-color LEDs
-const int CHANGE_COUNT = 3;	// change number of each LED
-const unsigned long ARR_FLICKER_FREQ [LED_COUNT] = {83, 89};	// flicker frequency of each LED
-const int ARR_COLOR_PIN[LED_COUNT][CHANGE_COUNT] = { {2,3,4}, {5,6,7}, }; // PIN of each change
+const int CHANGE_COUNT = 18;	// change number of each LED
+const unsigned long ARR_FLICKER_FREQ [LED_COUNT] = {73, 79};	// flicker frequency of each LED
+const int ARR_COLOR_PIN[LED_COUNT][CHANGE_COUNT] = { {2,2,2,2,0,0,3,3,3,3,0,0,4,4,4,4,0,0},\
+ {5,5,5,5,0,0,6,6,6,6,0,0,7,7,7,7,0,0}}; // PIN of each change
 
 unsigned long arrColorDuration [LED_COUNT] = {0};	// color duration of each LED (in microsecond)
 unsigned long arrPreviousTime [LED_COUNT] = {0};	// timestamp of previous color change of each LED

@@ -13,7 +13,7 @@ lsPlotColor = ['r', 'g', 'b', 'c', 'm', 'y']
 nMaxShutterRate = 60
 nMinShutterRate = 10
 arrExposure = np.linspace(1.0/nMaxShutterRate, 1.0/nMinShutterRate, 1000)
-dcLightPeriods = {'L0':1.0/83, 'L1':1.0/83,}
+dcLightPeriods = {'L0':1.0/73, 'L1':1.0/79,}
 
 #==============================================================================
 # single light
@@ -46,7 +46,11 @@ ax = plt.figure().add_subplot(111)
 for i, (lid, lsRatios) in enumerate(dcResult.iteritems()):
     ax.plot(arrExposure, lsRatios, color=lsPlotColor[i], label=lid)
 
+ax.axvline(x=1.0/20, ls='--', color='k')
 ax.axvline(x=1.0/33, ls='--', color='k')
+ax.axvline(x=1.0/44, ls='--', color='k')
+
+
 
 
 #==============================================================================

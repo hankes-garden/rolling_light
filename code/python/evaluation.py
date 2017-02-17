@@ -1,17 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-In this script, we evalute the performance of rolling light with different setup and scenarios.
+In this script, we evalute the performance of rolling light with different 
+setup and scenarios.
 
 Created on Tue Jan 24 17:51:35 2017
 
 @author: jason
 """
 
+import common_tool as ct
+
 import skimage.measure as measure
 import skimage.color as color
 import skimage.io as io
 import numpy as np
 import pandas as pd
+from colormath.color_objects import sRGBColor, IPTColor
+import colormath.color_conversions as cc
 
 import matlab.engine
 
@@ -25,6 +30,35 @@ SSIM = 'ssim'
 COLOR_DIFF = "color_diff"
 FISM = "fism"
 FISMC = "fism_c"
+MEAN = "mean"
+STD = "std"
+REF = "ref"
+CMP = 'cmp'
+
+def RGB2IPT(arrRGB):
+    """
+        convert pixel from sRGB space to IPT space.
+    """
+    rgb = sRGBColor(arrRGB[0],arrRGB[1],arrRGB[2],  True)
+    ipt = cc.convert_color(rgb, IPTColor)
+    return np.array(ipt.get_value_tuple() )
+
+def convertRGBImg2IPT(arrImg_rgb):
+    """
+        convert an image in sRGB space to ipt space.
+    """
+    arrImg_ipt = np.apply_along_axis(RGB2IPT, 2, arrImg_rgb)
+    return arrImg_ipt
+
+def computeSSIMIPT(arrRefImg_ipt, arrCompImg_ipt):
+    dSSIM_i = measure.compare_ssim(arrRefImg_ipt[:,:,0], \
+                                   arrCompImg_ipt[:,:,0])
+    dSSIM_p = measure.compare_ssim(arrRefImg_ipt[:,:,1], \
+                                   arrCompImg_ipt[:,:,1])
+    dSSIM_t = measure.compare_ssim(arrRefImg_ipt[:,:,2], \
+                                   arrCompImg_ipt[:,:,2])
+    dSSIM_ipt = dSSIM_i * dSSIM_p * dSSIM_t
+    return dSSIM_ipt
 
 def computeColorDiff(arrRefImg_lab, arrCompImg_lab):
     """
@@ -34,8 +68,7 @@ def computeColorDiff(arrRefImg_lab, arrCompImg_lab):
     return np.average(arrColorDiff_pixel)
     
                    
-def performExperiment(eng, strExperimentName, strRefImgPath,
-                      dcCompareImages):
+def performExperiment(eng, strExperimentName, dcCorpus):
     """
         Run a experiment
         
@@ -44,18 +77,23 @@ def performExperiment(eng, strExperimentName, strRefImgPath,
         eng: matlab engine instance.
         strExperimentName: experiment name.
         strRefImgPath: file path of reference image.
-        dcCompareImages: a dictionary of compare images.
+        dcCorpus: a dictionary of experiment data.
         
         
     """
-    # load image
-    arrRefImg = io.imread(strRefImgPath)
-    arrRefImg_bw = color.rgb2gray(arrRefImg)
-    arrRefImg_lab = color.rgb2lab(arrRefImg)
-    
+       
     dcResult = {} # result of all sets 
-    for strSetName, lsCompImg in dcCompareImages.iteritems():
+    for strSetName, dcSetData in dcCorpus.iteritems():
         print("Comparing img set: %s..." % strSetName)
+        
+        strRefImgPath = dcSetData[REF]
+        lsCompImg = dcSetData[CMP]
+        
+        # load ref image
+        arrRefImg = io.imread(strRefImgPath)
+        arrRefImg_bw = color.rgb2gray(arrRefImg)
+        arrRefImg_lab = color.rgb2lab(arrRefImg)
+        
         dcSetResult = {} # set result
         for i, strCompImgPath in enumerate(lsCompImg):
             print("-->img: %s." % strCompImgPath)
@@ -64,18 +102,21 @@ def performExperiment(eng, strExperimentName, strRefImgPath,
             arrCompImg_lab = color.rgb2lab(arrCompImg)
             
             # PSNR
+            print("computing PSNR...")
             dPSNR = measure.compare_psnr(arrRefImg, arrCompImg)
             
             # ssim
+            print("computing SSIM...")
             dSSIM = measure.compare_ssim(arrRefImg_bw, arrCompImg_bw)
             
             
             # Color difference
+            print("computing CD...")
             dCD = computeColorDiff(arrRefImg_lab, arrCompImg_lab)
     
-            # Correlation of color histogram
             
             # FISMc
+            print("computing FISMc...")
             dFISM, dFISMc = eng.FeatureSIM(strRefImgPath, strCompImgPath,\
                                            nargout=2)
         
@@ -83,41 +124,67 @@ def performExperiment(eng, strExperimentName, strRefImgPath,
             dcCompResult = {PSNR: dPSNR, 
                             SSIM: dSSIM,
                             COLOR_DIFF: dCD,
-                            FISM: dFISM,
                             FISMC: dFISMc}
             dcSetResult[i] = dcCompResult
             print dcCompResult
         # statistics of set result
         dfSetResult = pd.DataFrame.from_dict(dcSetResult, orient='index')
-        dfSetResult.to_csv('../../data/result/%s_%s.csv' % \
+        dfSetResult.to_csv('../../data/evaluation/temp_result/%s_%s.csv' % \
                            (strExperimentName, strSetName) )
         
         srSetMean = dfSetResult.mean()
-        dcResult[strSetName] = srSetMean
+        srSetStd = dfSetResult.std()
+        dcResult[strSetName+"_"+MEAN] = srSetMean
+        dcResult[strSetName+"_"+STD] = srSetStd
         
     
     dfResult = pd.DataFrame.from_dict(dcResult, orient='index')
     print("Experiment is finished.")
     return dfResult
 
+def createCorpus(strDataDir, lsSetNames):
+    """
+        Create a dictionary of experiment data.
+        ----
+        Return:
+        dcData = {'set_name': {'ref': ref_path, 'cmp': cmp list}, }
+    """
+    dcData = {}
+    for strSetName in lsSetNames:
+        dcSet = {}
+        dcSet[REF] = ct.getFileList(strDataDir+strSetName, "JPG", "ref")[0]
+        dcSet[CMP] = ct.getFileList(strDataDir+strSetName, "JPG", "IMG")
+        if(dcSet[REF] is None or len(dcSet[CMP])==0):
+            raise ValueError("No ref image or empty comparing list.")
+            
+        dcData[strSetName] = dcSet
+    return dcData
+    
+
 
 # evaluateion start
-strExperimentName = "illuminance"
-strRefImgPath = "../../data/sample_data_for_IQM/IMG_3555.JPG"
-dcCompareImages = {\
-    'test1': ["../../data/sample_data_for_IQM/IMG_3557.JPG",
-              "../../data/sample_data_for_IQM/IMG_3560.JPG",],
-    'test2': ["../../data/sample_data_for_IQM/IMG_3570.JPG",
-              "../../data/sample_data_for_IQM/IMG_3574.JPG",]\
-              }
-eng = matlab.engine.start_matlab()
+strExperimentName = "device"
+strDataDir = "../../data/evaluation/%s/" % strExperimentName
+dcCorpus = createCorpus(strDataDir, 
+                                    ["iphone5s", 
+                                     "iphone6",
+                                     "iphone6s",
+                                     "iphone7",
+                                     "huawei_honor",
+                                     "samsung_n3"])
+
+try:
+    eng is not None
+except NameError:
+    print("Initializing matlab engine...")
+    eng = matlab.engine.start_matlab()
                    
-dfResult = performExperiment(eng, strExperimentName, \
-                             strRefImgPath, dcCompareImages)
+dfResult = performExperiment(eng, strExperimentName, dcCorpus)
                              
 # plot
 print dfResult
 
 # write to file
-dfResult.to_csv("../../data/result/%s.csv" % strExperimentName)
+dfResult.to_csv("../../data/evaluation/%s/%s.csv" % \
+                (strExperimentName, strExperimentName) )
     

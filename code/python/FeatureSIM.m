@@ -114,13 +114,13 @@ gradientMap2 = sqrt(IxY2.^2 + IyY2.^2);
 % Calculate the FSIM
 %%%%%%%%%%%%%%%%%%%%%%%%%
 T1 = 0.85;  %fixed
-T2 = 160; %fixed
+T2 = 160;   %fixed
 PCSimMatrix = (2 * PC1 .* PC2 + T1) ./ (PC1.^2 + PC2.^2 + T1);
 gradientSimMatrix = (2*gradientMap1.*gradientMap2 + T2) ./(gradientMap1.^2 + gradientMap2.^2 + T2);
 PCm = max(PC1, PC2);
-SimMatrix = gradientSimMatrix .* PCSimMatrix .* PCm;
-FSIM = sum(sum(SimMatrix)) / sum(sum(PCm));
-
+% SimMatrix = gradientSimMatrix .* PCSimMatrix .* PCm;
+% FSIM = sum(sum(SimMatrix)) / sum(sum(PCm));
+FSIM = 0.0
 %%%%%%%%%%%%%%%%%%%%%%%%%
 % Calculate the FSIMc
 %%%%%%%%%%%%%%%%%%%%%%%%%
