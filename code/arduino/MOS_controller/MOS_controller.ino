@@ -1,30 +1,25 @@
-const int GATE_1 = 2;
-const int GATE_2 = 3;
-const int GATE_3 = 4;
-
-const int LOW_PIN = 13;
+const int PIN_COUNT = 12;
+int g_arrCtrlPins [PIN_COUNT] = {2,3,4,5,6,7,8,9,10,11,12,13};
+int g_nCurrentPinIndex = 0;
 
 unsigned long nPreviousTime = 0;
 unsigned long nCurrentTime = 0;
 
-const unsigned long FLICKER_INTERVAL = 1000000;
+const unsigned long CHANGE_DURATION = 1000000;
 
 void setup() {
 	// turn off all LEDs
-	pinMode(GATE_1, OUTPUT);
-	digitalWrite(GATE_1, LOW);
-	
-	pinMode(GATE_2, OUTPUT);
-	digitalWrite(GATE_2, LOW);
-	
-	pinMode(GATE_3, OUTPUT);
-	digitalWrite(GATE_3, LOW);
-	
-	pinMode(LOW_PIN, OUTPUT);
-	digitalWrite(LOW_PIN, LOW);
-	
-
-
+    for (int i=0; i<PIN_COUNT; ++i)
+    {
+        pinMode(g_arrCtrlPins[i], OUTPUT);
+        digitalWrite(g_arrCtrlPins[i], LOW);
+    }
+    
+    // turn the first pin on
+    digitalWrite(g_arrCtrlPins[g_nCurrentPinIndex], HIGH);
+    Serial.print("Current Pin:"); Serial.print(g_nCurrentPinIndex); Serial.print("\n");
+    
+    Serial.begin(9600);
 }
 
 void loop() {
@@ -35,14 +30,16 @@ void loop() {
 	  return;
   }
 
-  if (nCurrentTime - nPreviousTime >= FLICKER_INTERVAL) // time for flicker
+  if (nCurrentTime - nPreviousTime >= CHANGE_DURATION) // time to change
   {
     // save the last time you blinked the LED
     nPreviousTime = nCurrentTime;
 	
 	// turn off current shinning LED & Turn on next LED
-    digitalWrite(GATE_1, !digitalRead(GATE_1) );
-	digitalWrite(GATE_2, !digitalRead(GATE_2) );
-	digitalWrite(GATE_3, !digitalRead(GATE_3) );
+    digitalWrite(g_arrCtrlPins[g_nCurrentPinIndex], LOW);
+    g_nCurrentPinIndex = (g_nCurrentPinIndex+1) % PIN_COUNT;
+    digitalWrite(g_arrCtrlPins[g_nCurrentPinIndex], HIGH);
+    Serial.print("Current Pin:"); Serial.print(g_arrCtrlPins[g_nCurrentPinIndex]); Serial.print("\n");
+
   }
 }
