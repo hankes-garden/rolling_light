@@ -27,6 +27,7 @@ REF = "reference"
 COMPARE = "compare"
 PSNR = 'psnr'
 SSIM = 'ssim'
+QSSIM = "qssim"
 COLOR_DIFF = "color_diff"
 FISM = "fism"
 FISMC = "fism_c"
@@ -91,42 +92,42 @@ def performExperiment(eng, strExperimentName, dcCorpus):
         
         # load ref image
         arrRefImg = io.imread(strRefImgPath)
-        arrRefImg_bw = color.rgb2gray(arrRefImg)
         arrRefImg_lab = color.rgb2lab(arrRefImg)
         
         dcSetResult = {} # set result
         for i, strCompImgPath in enumerate(lsCompImg):
-            print("-->img: %s." % strCompImgPath)
-            arrCompImg = io.imread(strCompImgPath)
-            arrCompImg_bw = color.rgb2gray(arrCompImg)
-            arrCompImg_lab = color.rgb2lab(arrCompImg)
-            
-            # PSNR
-            print("computing PSNR...")
-            dPSNR = measure.compare_psnr(arrRefImg, arrCompImg)
-            
-            # ssim
-            print("computing SSIM...")
-            dSSIM = measure.compare_ssim(arrRefImg_bw, arrCompImg_bw)
-            
-            
-            # Color difference
-            print("computing CD...")
-            dCD = computeColorDiff(arrRefImg_lab, arrCompImg_lab)
-    
-            
-            # FISMc
-            print("computing FISMc...")
-            dFISM, dFISMc = eng.FeatureSIM(strRefImgPath, strCompImgPath,\
-                                           nargout=2)
+            try:
+                print("-->img: %s." % strCompImgPath)
+                arrCompImg = io.imread(strCompImgPath)
+                arrCompImg_lab = color.rgb2lab(arrCompImg)
+                
+                # PSNR
+                print("computing PSNR...")
+                dPSNR = measure.compare_psnr(arrRefImg, arrCompImg)
+                
+                # qssim
+                print("computing QSSIM...")
+                dQSSIM = eng.qssim(strRefImgPath, strCompImgPath)
+                
+                # Color difference
+                print("computing CD...")
+                dCD = computeColorDiff(arrRefImg_lab, arrCompImg_lab)
         
-            # add to result
-            dcCompResult = {PSNR: dPSNR, 
-                            SSIM: dSSIM,
-                            COLOR_DIFF: dCD,
-                            FISMC: dFISMc}
-            dcSetResult[i] = dcCompResult
-            print dcCompResult
+                
+                # FISMc
+                print("computing FISMc...")
+                dFISM, dFISMc = eng.FeatureSIM(strRefImgPath, strCompImgPath,\
+                                               nargout=2)
+            
+                # add to result
+                dcCompResult = {PSNR: dPSNR,
+                                QSSIM: dQSSIM,
+                                COLOR_DIFF: dCD,
+                                FISMC: dFISMc}
+                dcSetResult[strCompImgPath] = dcCompResult
+                print dcCompResult
+            except Exception as e:
+                print(e.strerror)
         # statistics of set result
         dfSetResult = pd.DataFrame.from_dict(dcSetResult, orient='index')
         dfSetResult.to_csv('../../data/evaluation/temp_result/%s_%s.csv' % \
@@ -134,8 +135,8 @@ def performExperiment(eng, strExperimentName, dcCorpus):
         
         srSetMean = dfSetResult.mean()
         srSetStd = dfSetResult.std()
-        dcResult[strSetName+"_"+MEAN] = srSetMean
-        dcResult[strSetName+"_"+STD] = srSetStd
+        srSetStd.rename(lambda x: x+"_"+STD, inplace=True)
+        dcResult[strSetName] = srSetMean.append(srSetStd)
         
     
     dfResult = pd.DataFrame.from_dict(dcResult, orient='index')
@@ -166,12 +167,7 @@ def createCorpus(strDataDir, lsSetNames):
 strExperimentName = "device"
 strDataDir = "../../data/evaluation/%s/" % strExperimentName
 dcCorpus = createCorpus(strDataDir, 
-                                    ["iphone5s", 
-                                     "iphone6",
-                                     "iphone6s",
-                                     "iphone7",
-                                     "huawei_honor",
-                                     "samsung_n3"])
+                                    ["honor",])
 
 try:
     eng is not None
@@ -185,6 +181,6 @@ dfResult = performExperiment(eng, strExperimentName, dcCorpus)
 print dfResult
 
 # write to file
-dfResult.to_csv("../../data/evaluation/%s/%s.csv" % \
-                (strExperimentName, strExperimentName) )
+dfResult.to_csv("%s/%s.csv" % \
+                (strDataDir, strExperimentName) )
     

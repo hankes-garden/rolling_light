@@ -2,70 +2,70 @@
 // and modulates them with both chromatic and illuminance changes.
 // by Lin Yang, CSE, HKUST.
 
-const int LED_COUNT = 2;	// number of multi-color LEDs
-const int CHANGE_COUNT = 18;	// change number of each LED
-const unsigned long ARR_FLICKER_FREQ [LED_COUNT] = {73, 79};	// flicker frequency of each LED
-const int ARR_COLOR_PIN[LED_COUNT][CHANGE_COUNT] = { {2,2,2,2,0,0,3,3,3,3,0,0,4,4,4,4,0,0},\
- {5,5,5,5,0,0,6,6,6,6,0,0,7,7,7,7,0,0}}; // PIN of each change
+const int LIGHT_NUM = 4;	// Light number
+const int STATE_NUM = 4;	// State number of each light
 
-unsigned long arrColorDuration [LED_COUNT] = {0};	// color duration of each LED (in microsecond)
-unsigned long arrPreviousTime [LED_COUNT] = {0};	// timestamp of previous color change of each LED
-short arrCurrentColorIndex [LED_COUNT] = {0};	// current color index of each LED
+unsigned long g_arrLightFrequencies [LIGHT_NUM] = {67, 67, 67, 67};	// State-changing frequency of each light
+int g_arrStates[LIGHT_NUM][STATE_NUM] = { {2,3,4,0}, {5,6,7,0}, \
+                                          {8,9,10,0}, {11,12,13,0} }; // Control PIN of each state
 
-unsigned long nCurrentTime = 0;	// current timestamp
+unsigned long g_arrStateDurations [LIGHT_NUM] = {0};	    // Duration of state (in microsecond)
+unsigned long g_arrPreviousChangeTime [LIGHT_NUM] = {0};	// Timestamp of previous state change
+short g_arrCurrentStateIndex [LIGHT_NUM] = {0};	            // Current color index of each LED
+
+unsigned long g_nCurrentTime = 0;	// current timestamp
 
 void setup() {
 	// compute the color duration for each LED
-	for (int i=0; i<LED_COUNT; ++i)
+	for (int i=0; i<LIGHT_NUM; ++i)
 	{
-		arrColorDuration[i] = 1000000/ARR_FLICKER_FREQ[i]/CHANGE_COUNT;
+		g_arrStateDurations[i] = 1000000/g_arrLightFrequencies[i]/STATE_NUM;
 	}
 	
 	// setup pin mode & turn off all PINs
-	for (int i=0; i<LED_COUNT; ++i)
+	for (int i=0; i<LIGHT_NUM; ++i)
 	{
-		for (int j=0; j<CHANGE_COUNT; ++j)
+		for (int j=0; j<STATE_NUM; ++j)
 		{
-			pinMode(ARR_COLOR_PIN[i][j], OUTPUT);
-			digitalWrite(ARR_COLOR_PIN[i][j], LOW);
-			// digitalWrite(ARR_COLOR_PIN[i][j], HIGH);
+			pinMode(g_arrStates[i][j], OUTPUT);
+			digitalWrite(g_arrStates[i][j], LOW);
 		}
 	}
 }
 
 void loop() {
 	// return;
-  nCurrentTime = micros();
+  g_nCurrentTime = micros();
   
   // Note that the microsecond value may overflow after every 70 minutes.
   // Since we donot need long experiment over 70 minute, we just ignore it for now.
-  for(int i=0; i<LED_COUNT; ++i)
+  for(int i=0; i<LIGHT_NUM; ++i)
   {
-	  if(nCurrentTime<arrPreviousTime[i]) // overflowed!
+	  if(g_nCurrentTime<g_arrPreviousChangeTime[i]) // overflowed!
 	  {
-		  for(int j=0; j<LED_COUNT; ++i)
+		  for(int j=0; j<LIGHT_NUM; ++i)
 		  {
-			arrPreviousTime[j] = nCurrentTime;
+			g_arrPreviousChangeTime[j] = g_nCurrentTime;
 		  }
 		  
 		  return;
 	  }
   }
   
-  for(int i=0; i<LED_COUNT; ++i)
+  for(int i=0; i<LIGHT_NUM; ++i)
   {
-	  if (nCurrentTime-arrPreviousTime[i] >= arrColorDuration[i])
+	  if (g_nCurrentTime-g_arrPreviousChangeTime[i] >= g_arrStateDurations[i])
 	  {
 			// turn off current color & Turn on next color
-			short nCurrentColorIndex = arrCurrentColorIndex[i];
-			digitalWrite(ARR_COLOR_PIN[i][nCurrentColorIndex], LOW);
+			short nCurrentColorIndex = g_arrCurrentStateIndex[i];
+			digitalWrite(g_arrStates[i][nCurrentColorIndex], LOW);
 			
-			short nNextColorIndex = (++nCurrentColorIndex) % CHANGE_COUNT;
-			digitalWrite(ARR_COLOR_PIN[i][nNextColorIndex], HIGH);
-			arrCurrentColorIndex[i] = nNextColorIndex;
+			short nNextColorIndex = (++nCurrentColorIndex) % STATE_NUM;
+			digitalWrite(g_arrStates[i][nNextColorIndex], HIGH);
+			g_arrCurrentStateIndex[i] = nNextColorIndex;
 
 			// save the time of this color change
-			arrPreviousTime[i] = nCurrentTime;
+			g_arrPreviousChangeTime[i] = g_nCurrentTime;
 	  }
   }
   

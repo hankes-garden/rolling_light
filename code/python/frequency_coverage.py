@@ -1,27 +1,30 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Dec 11 21:44:35 2016
+This script computes the ratio of non-white energy over white energy under 
+different light numbers.
 
 @author: jason
 """
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import math
 
 lsPlotColor = ['r', 'g', 'b', 'c', 'm', 'y']
 
-nMaxShutterRate = 60
+nMaxShutterRate = 100
 nMinShutterRate = 10
 arrExposure = np.linspace(1.0/nMaxShutterRate, 1.0/nMinShutterRate, 1000)
-dcLightPeriods = {'L0':1.0/73, 'L1':1.0/79,}
+dcLightFrequencies = {'L0':67, 'L1':73, 'L2':79, 'L3':83}
 
 #==============================================================================
 # single light
 #==============================================================================
 dcResult = {}
-for lid, dPeriod in dcLightPeriods.iteritems():
+for strID, nFrequency in dcLightFrequencies.iteritems():
+    dPeriod = 1.0/nFrequency
     lsRatios = []
-    dcResult[lid] = lsRatios
+    dcResult["%s=1/%d" % (strID, nFrequency) ] = lsRatios
     dColorDuration = dPeriod/3.0 # duration of each color
     for dExposure in arrExposure:
         dQuotient = math.floor(dExposure/dPeriod)
@@ -38,21 +41,18 @@ for lid, dPeriod in dcLightPeriods.iteritems():
         dNonWhiteRemainder = max(dColor1-dRemainderWhite, 0.0) + \
                              max(dColor2-dRemainderWhite, 0.0) + \
                              max(dColor3-dRemainderWhite, 0.0)
-        dRatio = dNonWhiteRemainder/(dQuotient*dPeriod+dRemainderWhite*3)
+        dRatio = min(dNonWhiteRemainder/(dQuotient*dPeriod+dRemainderWhite*3),
+                     1.0)
         lsRatios.append(dRatio)
-        
+
 #plot
 ax = plt.figure().add_subplot(111)
-for i, (lid, lsRatios) in enumerate(dcResult.iteritems()):
-    ax.plot(arrExposure, lsRatios, color=lsPlotColor[i], label=lid)
-
-ax.axvline(x=1.0/20, ls='--', color='k')
-ax.axvline(x=1.0/33, ls='--', color='k')
-ax.axvline(x=1.0/44, ls='--', color='k')
-
-
-
-
+for i, (strID, lsRatios) in enumerate(sorted(dcResult.iteritems() ) ):
+    ax.plot(arrExposure, lsRatios, 
+            color=lsPlotColor[i], label=strID)
+ax.axvline(1/30.0, ls='--', color='k')
+ax.axvline(1/29.0, ls='--', color='k')
+    
 #==============================================================================
 # multiple lights
 #==============================================================================
@@ -62,7 +62,8 @@ for dExposure in arrExposure:
     lsColor2 = []
     lsColor3 = []
     lsWhite = []
-    for lid, dPeriod in dcLightPeriods.iteritems():
+    for strID, nFrequency in dcLightFrequencies.iteritems():
+        dPeriod = 1.0/nFrequency
         dColorDuration = dPeriod/3.0
         dQuotient = math.floor(dExposure/dPeriod)
         dRemainder = dExposure%dPeriod
@@ -85,24 +86,32 @@ for dExposure in arrExposure:
     dMLColor2 = sum(lsColor2)
     dMLColor3 = sum(lsColor3)
     dMLRemainderWhite = min(dMLColor1, dMLColor2, dMLColor3)
+
     
     # compute non-white ratio
     dNonWhiteRemainder = max(dMLColor1-dMLRemainderWhite, 0.0) + \
                          max(dMLColor2-dMLRemainderWhite, 0.0) + \
                          max(dMLColor3-dMLRemainderWhite, 0.0)
     dWhite = sum(lsWhite) + dMLRemainderWhite*3
-    dRatio = dNonWhiteRemainder/dWhite
+    dRatio = min(dNonWhiteRemainder/dWhite, 1.0)
     lsMLResult.append(dRatio)
     
 #plot
 ax.plot(arrExposure, lsMLResult, lw=2, color='k', label='Multi-light')
 
 plt.xticks([1.0/i for i in range(nMaxShutterRate, nMinShutterRate-1, -10) ], 
-           [r'$1/%d$' % i for i in range(nMaxShutterRate, nMinShutterRate-1, -10) ],
-            rotation=90)
-ax.set_xlabel('Exposure Time (seconds)')
-ax.set_ylabel('Non-white Ratio')
+   [r'$1/%d$' % i for i in range(nMaxShutterRate, nMinShutterRate-1, -10) ],
+   rotation=90)
 ax.legend()
 plt.tight_layout()
 plt.grid('on')
-plt.show()    
+plt.show()
+
+# save to file
+dcResult['Multi-light'] = lsMLResult
+dcResult['Exposure Time'] = arrExposure
+dfResult = pd.DataFrame.from_dict(dcResult)
+dfResult.set_index("Exposure Time", inplace=True)
+
+dfResult.to_csv("../../data/evaluation/frequency_coverage/"
+                "frequency_coverage.csv")

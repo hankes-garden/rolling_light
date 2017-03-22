@@ -1,3 +1,2 @@
-% FSIM
-[dFSIM, dFSIMc] = FeatureSIM('../../data/sample_data_for_IQM/original.jpg', '../../data/sample_data_for_IQM/wide_b.JPG')
-
+% QSSIM
+qssim('../../data/evaluation/angle/90/ref.JPG', '../../data/evaluation/angle/90/ref.JPG')
